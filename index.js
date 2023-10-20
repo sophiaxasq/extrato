@@ -108,10 +108,23 @@ app.get('/comprovante', async (req, res) => {
 
 
 
-app.get('/', (req, res) => {
+app.get('/', async(req, res) => {
+
+
     axios.get('https://www.mercadopago.com.br/activities/api/activities/list?page=1&type=transfer_received&listing=activities', { headers })
-        .then(response => {
+        .then(async response => {
             const results = response.data.results;
+
+           const responseX = await axios.get('https://www.mercadopago.com.br/activities/api/activities/list?period=today&page=1&type=transfer_received&listing=activities', { headers })
+  
+        let total = 0; // Inicializando a variável total
+        for (let money of responseX.data.results) {
+            total += parseFloat(money.amount.fraction + '.' + money.amount.cents);
+        }
+
+        console.log("O valor total é: R$" + total);
+   
+
             let html = `<!DOCTYPE html>
             <html lang="pt-BR">
             <head>
@@ -138,18 +151,20 @@ app.get('/', (req, res) => {
                   margin: 0 auto;
                 }
             
-                /* Estilos do cabeçalho */
                 .header {
-                  background-color: #333;
+                  background: linear-gradient(to right, #de5ccf, #fe38a1);
                   color: white;
                   padding: 20px;
                 }
-            
+                
                 .header__title {
                   font-size: 32px;
                   text-align: center;
+                  font-family: 'Arial', sans-serif; /* Exemplo de fonte - ajuste conforme necessário */
+                  font-weight: bold; /* Texto em negrito */
+                  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Sombra de texto para destaque */
                 }
-            
+ 
                 /* Estilos da lista de atividades */
                 .activities-list {
                   padding: 20px;
@@ -190,7 +205,9 @@ app.get('/', (req, res) => {
                   font-size: 18px;
                   font-weight: normal;
                   margin-bottom: 5px;
+                  color: blue; /* Adicionando a cor azul */
                 }
+                
             
                 .activities-list__description {
                   font-size: 16px;
@@ -215,14 +232,24 @@ app.get('/', (req, res) => {
                   margin-bottom: 5px;
                 }
             
+                .red-text {
+                  color: #DC143C;
+                  font-family: 'Arial', sans-serif; /* Exemplo de fonte - ajuste conforme necessário */
+                  font-weight: bold; /* Texto em negrito */
+             
+                }
+                
                 .activities-list__button {
                   display: inline-block;
                   padding: 5px 10px;
                   border-radius: 5px;
-                  background-color: #333;
+                  background: -webkit-linear-gradient(left, #de5ccf, #fe38a1);
                   color: white;
                   text-decoration: none;
+                  font-weight: bold; /* Texto em negrito */
+                  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4); /* Destaque de texto */
                 }
+                
             
                 /* Estilos do rodapé */
                 .footer {
@@ -256,14 +283,20 @@ app.get('/', (req, res) => {
             <body>
             <div class="container">
             <header class="header">
-            <div class="header__title">Seu extrato:</div>
+            <div class="header__title">SALDO DE HOJE: R$${total}</div>
             </header>
             <section class="activities-list">
             <ul class="activities-list__content">
             `;
             results.forEach(result => {
-            const formattedDate = new Date(result.creationDate).toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo' });
+              const formattedDate2 = new Date(result.creationDate).toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo' });
             
+              const currentDate = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+              const formattedDate = new Date(result.creationDate).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+          
+              // Adicionando a classe 'red-text' se a data formatada for igual à data atual
+              const dateColorClass = currentDate === formattedDate ? 'red-text' : '';
+          
             html += `
             <li class="activities-list__item">
             <div class="activities-list__avatar">
@@ -275,7 +308,7 @@ app.get('/', (req, res) => {
             </div>
             <div class="activities-list__actions">
             <div class="activities-list__price">${result.amount.symbol}${result.amount.fraction}</div>
-            <time class="activities-list__time">${formattedDate}</time>
+            <time class="activities-list__time ${dateColorClass}">${formattedDate2}</time>
             <a href="/comprovante?id=${result.link}" class="activities-list__button">Comprovante</a>
 </div>
 </li>
