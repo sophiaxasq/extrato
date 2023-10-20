@@ -27,61 +27,81 @@ const headers = {
 };
 
 
+
+
+
+
 app.get('/comprovante', async (req, res) => {
   const link = req.query.id; // Obtém o ID da série a partir do parâmetro da URL
+
   try {
-  axios.get("https://www.mercadopago.com.br" + link.replace("/activities/detail/", "/activities/api/detail/"), { headers })
-  .then(async response2 => {
+    const response1 = await axios.get("https://www.mercadopago.com.br" + link.replace("/activities/detail/", "/activities/api/detail/"), { headers });
+    const link2 = response1.data.data.sections[3][0].data.link;
 
-    const link2 = response2.data.data.sections[3][0].data.link
+    const response2 = await axios.get(link2, {
+      headers,
+      responseType: 'arraybuffer'
+    });
 
+    const pdfBuffer = Buffer.from(response2.data);
+    const base64PDF = pdfBuffer.toString('base64');
 
+    res.setHeader('Content-Type', 'text/html');
+    res.send(`
+      <html>
+        <head>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.8.335/pdf.min.js"></script>
 
-      const response = await axios.get(link2, {
-          headers,
-          responseType: 'arraybuffer'
-      });
-      const pdfBuffer = Buffer.from(response.data);
+          <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
+          <style>
+            body, html {
+              margin: 0;
+              padding: 0;
+              width: 100%;
+              height: 100%;
+              overflow: hidden;
+            }
+            #the-canvas {
+              display: block;
+              position: absolute;
+              top: 0;
+              left: 0;
+            }
+          </style>
+        </head>
+        <body>
+          <div>
+            <canvas id="the-canvas"></canvas>
+          </div>
+          <script>
+            var pdfData = atob('${base64PDF}');
+            var loadingTask = pdfjsLib.getDocument({ data: pdfData });
+            loadingTask.promise.then(function(pdf) {
+              var scale = 1.5;
+              var pageNum = 1;
+              pdf.getPage(pageNum).then(function(page) {
+                var viewport = page.getViewport({ scale: scale });
 
-      res.setHeader('Content-Type', 'text/html');
-      res.send(`
-          <html>
-              <style>
-                  body, html {
-                      margin: 0;
-                      padding: 0;
-                      width: 100%;
-                      height: 100%;
-                      overflow: hidden;
-                  }
-                  #pdf-container {
-                      position: absolute;
-                      top: 0;
-                      left: 0;
-                      right: 0;
-                      bottom: 0;
-                  }
-              </style>
-              <body>
-                  <div id="pdf-container">
-                      <iframe id="pdf-iframe" src="data:application/pdf;base64,${pdfBuffer.toString('base64')}" width="100%" height="100%"></iframe>
-                  </div>
-                  <script>
-                      window.addEventListener('resize', function() {
-                          var pdfIframe = document.getElementById('pdf-iframe');
-                          pdfIframe.style.height = window.innerHeight + 'px';
-                      });
-                      document.getElementById('pdf-iframe').style.height = window.innerHeight + 'px';
-                  </script>
-              </body>
-          </html>
-      `);
-    })
+                var canvas = document.getElementById('the-canvas');
+                var context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                var renderContext = {
+                  canvasContext: context,
+                  viewport: viewport
+                };
+                page.render(renderContext);
+              });
+            });
+          </script>
+        </body>
+      </html>
+    `);
   } catch (error) {
-      console.error(error);
-      res.status(500).send('Ocorreu um erro ao obter o PDF: ' + error.message);
+    console.error(error);
+    res.status(500).send('Ocorreu um erro ao obter o PDF: ' + error.message);
   }
-
 });
 
 
