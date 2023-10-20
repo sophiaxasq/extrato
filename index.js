@@ -31,6 +31,8 @@ const headers = {
 
 
 
+
+
 app.get('/comprovante', async (req, res) => {
   const link = req.query.id; // Obtém o ID da série a partir do parâmetro da URL
 
@@ -50,8 +52,8 @@ app.get('/comprovante', async (req, res) => {
     res.send(`
       <html>
         <head>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.8.335/pdf.min.js"></script>
-
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.8.335/pdf.min.js"></script>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
           <script src="https://mozilla.github.io/pdf.js/build/pdf.js"></script>
           <style>
             body, html {
@@ -77,7 +79,7 @@ app.get('/comprovante', async (req, res) => {
             var pdfData = atob('${base64PDF}');
             var loadingTask = pdfjsLib.getDocument({ data: pdfData });
             loadingTask.promise.then(function(pdf) {
-              var scale = 1.5;
+              var scale = 1; // Defina o valor de escala para 1 para evitar o zoom
               var pageNum = 1;
               pdf.getPage(pageNum).then(function(page) {
                 var viewport = page.getViewport({ scale: scale });
@@ -103,6 +105,7 @@ app.get('/comprovante', async (req, res) => {
     res.status(500).send('Ocorreu um erro ao obter o PDF: ' + error.message);
   }
 });
+
 
 
 app.get('/', (req, res) => {
