@@ -1,6 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const app = express();
+const { PDFDocument } = require('pdf-lib');
 
 const headers = {
     'authority': 'www.mercadopago.com.br',
@@ -25,121 +26,249 @@ const headers = {
     'x-newrelic-id': 'XQ4OVF5VGwYFXVNUAwMH'
 };
 
+
+app.get('/comprovante', async (req, res) => {
+  const link = req.query.id; // Obtém o ID da série a partir do parâmetro da URL
+  try {
+  axios.get("https://www.mercadopago.com.br" + link.replace("/activities/detail/", "/activities/api/detail/"), { headers })
+  .then(async response2 => {
+
+    const link2 = response2.data.data.sections[3][0].data.link
+
+
+
+      const response = await axios.get(link2, {
+          headers,
+          responseType: 'arraybuffer'
+      });
+      const pdfBuffer = Buffer.from(response.data);
+
+      res.setHeader('Content-Type', 'text/html');
+      res.send(`
+          <html>
+              <style>
+                  body, html {
+                      margin: 0;
+                      padding: 0;
+                      width: 100%;
+                      height: 100%;
+                      overflow: hidden;
+                  }
+                  #pdf-container {
+                      position: absolute;
+                      top: 0;
+                      left: 0;
+                      right: 0;
+                      bottom: 0;
+                  }
+              </style>
+              <body>
+                  <div id="pdf-container">
+                      <iframe id="pdf-iframe" src="data:application/pdf;base64,${pdfBuffer.toString('base64')}" width="100%" height="100%"></iframe>
+                  </div>
+                  <script>
+                      window.addEventListener('resize', function() {
+                          var pdfIframe = document.getElementById('pdf-iframe');
+                          pdfIframe.style.height = window.innerHeight + 'px';
+                      });
+                      document.getElementById('pdf-iframe').style.height = window.innerHeight + 'px';
+                  </script>
+              </body>
+          </html>
+      `);
+    })
+  } catch (error) {
+      console.error(error);
+      res.status(500).send('Ocorreu um erro ao obter o PDF: ' + error.message);
+  }
+
+});
+
+
 app.get('/', (req, res) => {
     axios.get('https://www.mercadopago.com.br/activities/api/activities/list?page=1&type=transfer_received&listing=activities', { headers })
         .then(response => {
             const results = response.data.results;
-            let html = `
-            <!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="preconnect" href="https://www.google-analytics.com">
-    <link rel="preconnect" href="https://www.google.com">
-    <link rel="preconnect" href="https://data.mercadolibre.com">
-    <link rel="preconnect" href="https://http2.mlstatic.com">
-    <style>
-        .activities-list {
-            padding: 20px;
-            font-family: Arial, sans-serif;
-        }
-        .ui-list {
-            list-style: none;
-            padding: 0;
-        }
-        .ui-list__head {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-        .ui-list__title {
-            font-size: 20px;
-            font-weight: bold;
-        }
-        .ui-row__link {
-            display: flex;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #ddd;
-            text-decoration: none;
-            color: #333;
-        }
-        .ui-row__col {
-            flex: 1;
-            padding: 0 10px;
-        }
-        .ui-action-row__title {
-            font-size: 16px;
-            font-weight: bold;
-        }
-        .c-description-classic__status {
-            font-size: 14px;
-            color: #777;
-        }
-        .andes-money-amount {
-            font-size: 16px;
-        }
-        .c-activity-row__time {
-            font-size: 14px;
-            color: #888;
-        }
-    </style>
-</head>
-<body>
-<div class="activities-list">
-    <div class="ui-list c-activity-list">
-        <div class="ui-list__head">
-            <div class="ui-list__title">Seu extrato:</div>
-        </div>
-        <ul class="ui-list__content">
+            let html = `<!DOCTYPE html>
+            <html lang="pt-BR">
+            <head>
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <link rel="preconnect" href="https://www.google-analytics.com">
+              <link rel="preconnect" href="https://www.google.com">
+              <link rel="preconnect" href="https://data.mercadolibre.com">
+              <link rel="preconnect" href="https://http2.mlstatic.com">
+              <style>
+                /* Estilos gerais */
+                * {
+                  box-sizing: border-box;
+                  margin: 0;
+                  padding: 0;
+                }
+            
+                body {
+                  font-family: Arial, sans-serif;
+                  background-color: #f0f0f0;
+                }
+            
+                .container {
+                  max-width: 1200px;
+                  margin: 0 auto;
+                }
+            
+                /* Estilos do cabeçalho */
+                .header {
+                  background-color: #333;
+                  color: white;
+                  padding: 20px;
+                }
+            
+                .header__title {
+                  font-size: 32px;
+                  text-align: center;
+                }
+            
+                /* Estilos da lista de atividades */
+                .activities-list {
+                  padding: 20px;
+                }
+            
+                .activities-list__title {
+                  font-size: 24px;
+                  font-weight: bold;
+                  margin-bottom: 10px;
+                }
+            
+                .activities-list__item {
+                  display: flex;
+                  align-items: center;
+                  border-bottom: 1px solid #ccc;
+                  padding: 10px;
+                }
+            
+                .activities-list__avatar {
+                  width: 50px;
+                  height: 50px;
+                  border-radius: 50%;
+                  overflow: hidden;
+                  margin-right: 10px;
+                }
+            
+                .activities-list__avatar img {
+                  width: 100%;
+                  height: 100%;
+                  object-fit: cover;
+                }
+            
+                .activities-list__content {
+                  flex-grow: 1;
+                }
+            
+                .activities-list__title {
+                  font-size: 18px;
+                  font-weight: normal;
+                  margin-bottom: 5px;
+                }
+            
+                .activities-list__description {
+                  font-size: 16px;
+                  color: #666;
+                }
+            
+                .activities-list__actions {
+                  display: flex;
+                  flex-direction: column;
+                  align-items: flex-end;
+                }
+            
+                .activities-list__price {
+                  font-size: 20px;
+                  font-weight: bold;
+                  color: green;
+                }
+            
+                .activities-list__time {
+                  font-size: 14px;
+                  color: #999;
+                  margin-bottom: 5px;
+                }
+            
+                .activities-list__button {
+                  display: inline-block;
+                  padding: 5px 10px;
+                  border-radius: 5px;
+                  background-color: #333;
+                  color: white;
+                  text-decoration: none;
+                }
+            
+                /* Estilos do rodapé */
+                .footer {
+                  background-color:#333; 
+                    color:white; 
+                    padding-top :20px; 
+                    padding-bottom :20px; 
+                    text-align :center; 
+                    margin-top :20px; 
+                    font-size :14px; 
+                    line-height :1.5; 
+                    }
+                
+                    /* Estilos para telas pequenas (até 600px de largura) */
+                    @media (max-width :600 px) { 
+                        .activities-list__item { 
+                            flex-direction :column; 
+                            align-items :flex-start; 
+                            } 
+                        
+                        .activities-list__actions { 
+                            align-items :flex-start; 
+                            margin-top :10 px; 
+                            } 
+                        
+                        } 
+            
+                
+            </style>
+            </head>
+            <body>
+            <div class="container">
+            <header class="header">
+            <div class="header__title">Seu extrato:</div>
+            </header>
+            <section class="activities-list">
+            <ul class="activities-list__content">
             `;
             results.forEach(result => {
-                const formattedDate = new Date(result.creationDate).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
-
-                html += `
-            <a class="ui-row__link">
-              <div class="ui-row__col ui-row__col--heading">
-                <div class="ui-avatar c-activity-avatar">
-                  <img decoding="async" src="https://http2.mlstatic.com/storage/activities-middle-end/activities-assets/avatars-v2/svg/ic_account_fund.svg" class="ui-avatar__icon ui-avatar__icon--ic_account_fund" data-src-fallback="https://http2.mlstatic.com/storage/activities-middle-end/activities-assets/avatars-v2/svg/ic_user_picture.svg">
-                </div>
-              </div>
-              <div class="ui-row__col ui-row__col--content">
-                <div class="ui-action-row__content">
-                  <div class="ui-action-row__title u-truncate">Pix Recebido!</div>
-                  <div class="ui-action-row__description">
-                    <div class="c-description-classic">
-                      <span class="c-description-classic__status u-truncate c-description-classic__status--no-feedback">${result.description}<span class="c-description-classic__email"></span></span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              <div class="ui-row__col ui-row__col--actions">
-                <div class="ui-action-row__actions">
-                  <div class="ui-action-row__extra-actions">
-                    <div class="c-activity-row__extra-action c-activity-row__extra-action--margin">
-                      <span class="andes-money-amount c-activity-row__price--classic c-activity-row__price--green andes-money-amount--cents-comma" style="font-size: 16px;">
-                      
-                        <span class="andes-money-amount__currency-symbol" aria-hidden="true">${result.amount.symbol}</span>
-                        <span class="andes-money-amount__fraction" aria-hidden="true">${result.amount.fraction}</span>
-                      </span>
-                      <time class="c-activity-row__time">${formattedDate}</time>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </a>
-          `;
-            });
-
+            const formattedDate = new Date(result.creationDate).toLocaleString('pt-BR', { timeZone:'America/Sao_Paulo' });
+            
             html += `
-    
-    
-            </ul>
+            <li class="activities-list__item">
+            <div class="activities-list__avatar">
+            <img decoding="async" src="https://http2.mlstatic.com/storage/activities-middle-end/activities-assets/avatars-v2/svg/ic_account_fund.svg" class="ui-avatar__icon ui-avatar__icon--ic_account_fund" data-src-fallback="https://http2.mlstatic.com/storage/activities-middle-end/activities-assets/avatars-v2/svg/ic_user_picture.svg">
             </div>
-        </div>
-        </body>
-        </html>
+            <div class="activities-list__content">
+            <div class="activities-list__title">Pix Recebido!</div>
+            <div class="activities-list__description">${result.description}</div>
+            </div>
+            <div class="activities-list__actions">
+            <div class="activities-list__price">${result.amount.symbol}${result.amount.fraction}</div>
+            <time class="activities-list__time">${formattedDate}</time>
+            <a href="/comprovante?id=${result.link}" class="activities-list__button">Comprovante</a>
+</div>
+</li>
+`;
+});
+
+html += `
+</ul>
+</section>
+<footer class="footer">
+<p>Site criado por Higor Oliveira, usando a api não oficial do Mercado Pago. </p>
+</footer>
+</div>
+</body>
+</html>
+ 
         `;
             res.send(html);
         })
