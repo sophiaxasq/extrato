@@ -107,6 +107,130 @@ app.get('/comprovante', async (req, res) => {
 });
 
 
+app.get('/semana', async(req, res) => {
+  let total = 0;
+  let page = 1;
+  let dailyTotals = {};
+  let ttoalpix = 0
+
+  let valotTotal = 0
+  let maiorLucroData = 0
+  let maiorLucro = 0
+  let mediaPorDia = 0
+
+  const getTransactions = async (page) => {
+      const response = await axios.get(`https://www.mercadopago.com.br/activities/api/activities/list?period=last_week&page=${page}&listing=activities`, { headers });
+      ttoalpix = response.data.totalResults
+      return response.data.results;
+  }
+
+  const calculateTotal = async () => {
+      while (true) {
+          const transactions = await getTransactions(page);
+          if (transactions.length === 0) break;
+      
+          transactions.forEach(transaction => {
+              if (transaction.title === 'Transferência Pix recebida') {
+                  const value = parseFloat(`${transaction.amount.fraction}.${transaction.amount.cents}`);
+                  total += value;
+
+                  const date = new Date(transaction.creationDate).toISOString().split('T')[0];
+                  if (!dailyTotals[date]) {
+                      dailyTotals[date] = 0;
+                  }
+                  dailyTotals[date] += value;
+              }
+          });
+
+          page++;
+      }
+
+      valotTotal = total.toFixed(2)
+      maiorLucroData = Object.keys(dailyTotals).reduce((a, b) => dailyTotals[a] > dailyTotals[b] ? a : b);
+      maiorLucro = dailyTotals[maiorLucroData].toFixed(2)
+      mediaPorDia = total.toFixed(2)/7
+
+      // Obtendo a data atual no formato do Brasil
+const dataAtual = new Date();
+const dia = String(dataAtual.getDate()).padStart(2, '0');
+const mes = String(dataAtual.getMonth() + 1).padStart(2, '0'); // O mês começa do zero
+const ano = dataAtual.getFullYear();
+const dataAtualFormatada = `${dia}/${mes}/${ano}`;
+
+// Obtendo a data de 7 dias atrás
+const dataSeteDiasAtras = new Date();
+dataSeteDiasAtras.setDate(dataSeteDiasAtras.getDate() - 7);
+const diaSeteDiasAtras = String(dataSeteDiasAtras.getDate()).padStart(2, '0');
+const mesSeteDiasAtras = String(dataSeteDiasAtras.getMonth() + 1).padStart(2, '0'); // O mês começa do zero
+const anoSeteDiasAtras = dataSeteDiasAtras.getFullYear();
+const dataSeteDiasAtrasFormatada = `${diaSeteDiasAtras}/${mesSeteDiasAtras}/${anoSeteDiasAtras}`;
+
+// Exibindo no console
+console.log('Data atual no formato do Brasil:', dataAtualFormatada);
+console.log('Data de 7 dias atrás no formato do Brasil:', dataSeteDiasAtrasFormatada);
+
+
+      // Formatando a data para o formato brasileiro
+      const [year, month, day] = maiorLucroData.split('-');
+      const formattedDate = `${day}/${month}/${year}`;
+
+      // Calculando a data inicial (7 dias atrás)
+      const initialDateObj = new Date();
+      initialDateObj.setDate(initialDateObj.getDate() - 7);
+      const initialDate = `${initialDateObj.getDate()}/${initialDateObj.getMonth()+1}/${initialDateObj.getFullYear()}`;
+
+      res.send(`
+      <html>
+    <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500&display=swap');
+            body { 
+                font-family: 'Roboto', sans-serif; 
+                margin: 0; 
+                padding: 0; 
+                background-color: #f0f0f0; 
+            }
+            .container { 
+                max-width: 600px; 
+                margin: auto; 
+                padding: 20px; 
+                background-color: #fff; 
+                box-shadow: 1px 1px 3px rgba(0,0,0,0.1); 
+            }
+            h1 { 
+                color: #333; 
+                text-align: center;
+            }
+            p { 
+                color: #666; 
+                border-bottom: 1px solid #ddd;
+                padding-bottom: 10px;
+            }
+            .logo {
+                display: block;
+                margin-left: auto;
+                margin-right: auto;
+                width: 50%;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <img src="https://images.vexels.com/media/users/3/263260/isolated/preview/fd56d6553b8ad0b4ffb08c5515f131da-carteira-com-notas-de-da-lar.png" alt="Logo" class="logo">
+            <h1>Resumo Semanal</h1>
+            <p>Informações entre dia ${dataSeteDiasAtrasFormatada} até ${dataAtualFormatada}</p>
+            <p>Valor feito nos ultimos 7 dias: R$ ${valotTotal}</p>
+            <p>Data com maior lucro: ${formattedDate}, com um total de R$ ${maiorLucro}</p>
+            <p>Média por dia: R$ ${mediaPorDia.toFixed(2)}</p>
+        </div>
+    </body>
+</html>
+      `);
+  }
+
+  calculateTotal();
+});
 
 app.get('/', async(req, res) => {
 
@@ -152,18 +276,24 @@ app.get('/', async(req, res) => {
                 }
             
                 .header {
-                  background: linear-gradient(to right, #de5ccf, #fe38a1);
+                  background-color: #1E90FF
                   color: white;
                   padding: 20px;
+                  display: flex;
+    justify-content: space-between;
+    align-items: center;
                 }
                 
                 .header__title {
-                  font-size: 32px;
+                  color: #2F4F4F;
+                  font-size: 20px; /* Aumentei o tamanho da fonte para destacar o título */
                   text-align: center;
-                  font-family: 'Arial', sans-serif; /* Exemplo de fonte - ajuste conforme necessário */
-                  font-weight: bold; /* Texto em negrito */
-                  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5); /* Sombra de texto para destaque */
-                }
+                  font-family: 'Helvetica Neue', sans-serif; /* Alterei a fonte para Helvetica Neue, que é conhecida por seu visual limpo e moderno */
+                  font-weight: 300; /* Reduzi o peso da fonte para um visual mais leve e minimalista */
+                  text-shadow: none; /* Removi a sombra do texto para um visual mais limpo */
+                  letter-spacing: 1px; /* Adicionei espaçamento entre as letras para melhorar a legibilidade */
+              }
+              
  
                 /* Estilos da lista de atividades */
                 .activities-list {
@@ -243,14 +373,36 @@ app.get('/', async(req, res) => {
                   display: inline-block;
                   padding: 5px 10px;
                   border-radius: 5px;
-                  background: -webkit-linear-gradient(left, #de5ccf, #fe38a1);
+                  background: #8A2BE2;
                   color: white;
                   text-decoration: none;
                   font-weight: bold; /* Texto em negrito */
                   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.4); /* Destaque de texto */
                 }
                 
-            
+                .header__button {
+                  display: inline-block;
+                  padding: 10px 20px;
+                  background-color: #4CAF50; /* Green */
+                  border: none;
+                  color: white;
+                  text-align: center;
+                  text-decoration: none;
+                  font-size: 16px;
+                  margin: 4px 2px;
+                  transition-duration: 0.4s;
+                  cursor: pointer;
+              
+                  /* Adicionado para tornar o botão arredondado e destacado */
+                  border-radius: 12px; /* Arredonda os cantos do botão */
+                  box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 0 6px 20px 0 rgba(0,0,0,0.19); /* Adiciona sombra ao botão */
+              }
+              
+              .header__button:hover {
+                  background-color: white; 
+                  color: black; 
+              }
+
                 /* Estilos do rodapé */
                 .footer {
                   background-color:#333; 
@@ -283,8 +435,10 @@ app.get('/', async(req, res) => {
             <body>
             <div class="container">
             <header class="header">
+            <a href="/semana" class="header__button">Resumo Semanal</a>
             <div class="header__title">SALDO DE HOJE: R$${total}</div>
-            </header>
+         
+        </header>
             <section class="activities-list">
             <ul class="activities-list__content">
             `;
