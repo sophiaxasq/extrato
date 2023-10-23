@@ -239,14 +239,47 @@ app.get('/', async(req, res) => {
         .then(async response => {
             const results = response.data.results;
 
-           const responseX = await axios.get('https://www.mercadopago.com.br/activities/api/activities/list?period=today&page=1&type=transfer_received&listing=activities', { headers })
-  
-        let total = 0; // Inicializando a variável total
-        for (let money of responseX.data.results) {
-            total += parseFloat(money.amount.fraction + '.' + money.amount.cents);
-        }
+            let total2 = 0;
+            const makeRequest = async (pagina) => {
+                try {
+                  const response = await axios.get(`https://www.mercadopago.com.br/activities/api/activities/list?period=today&page=${pagina}&type=transfer_received&listing=activities`, { headers });
+              
+            if (response.data.results.length == 0) {
+            return false
+            }
+                  for (let money of response.data.results) {
+                    total2 += parseFloat(money.amount.fraction + '.' + money.amount.cents);
+                  }
+              
+                 
+                  return total2
+                } catch (error) {
+                  console.error('Ocorreu um erro ao fazer a solicitação:', error.message);
+                }
+              };
+              
+              const calculateTotalHoje = async () => {
+                let pagina = 1;
+                console.log("start");
+              
+                while (true) {
+                 let solici = await makeRequest(pagina);
+                  pagina++;
+              
+                  // Coloque aqui uma condição de saída para interromper o loop
+                  if (solici == false) {
+                    console.log("O valor total é: R$" + total2);
+                    break;
+                  }
+              
+                  // Adicione uma pausa entre as solicitações para evitar sobrecarregar o servidor
+                  await new Promise(resolve => setTimeout(resolve, 200));
+                }
+               
+              };
+             await calculateTotalHoje()
 
-        console.log("O valor total é: R$" + total);
+        console.log("O valor total é: R$" + total2);
    
 
             let html = `<!DOCTYPE html>
@@ -436,7 +469,7 @@ app.get('/', async(req, res) => {
             <div class="container">
             <header class="header">
             <a href="/semana" class="header__button">Resumo Semanal</a>
-            <div class="header__title">SALDO DE HOJE: R$${total}</div>
+            <div class="header__title">SALDO DE HOJE: R$${total2}</div>
          
         </header>
             <section class="activities-list">
